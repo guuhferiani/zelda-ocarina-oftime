@@ -34,7 +34,7 @@ Versão unificada, compilada em **Clang 23 + PGO (Profile-Guided Optimization)**
 
 ## 🚀 Como Usar
 
-1. Baixe o pacote compilado na aba [Releases](https://github.com/guuhferiani/zelda-ocarina-oftime/releases).
+1. Baixe o pacote compilado na aba [Releases v1.0.0](https://github.com/guuhferiani/zelda-ocarina-oftime/releases/tag/v1.0.0).
 2. Extraia o arquivo .zip em qualquer pasta do seu computador.
 3. Coloque suas chaves (prod.keys) na pasta user/keys/ (ou em %APPDATA%\eden\keys\).
 4. Abra o executável lichii.exe.
@@ -56,3 +56,4 @@ Versão unificada, compilada em **Clang 23 + PGO (Profile-Guided Optimization)**
 ---
 
 *Aviso: Este projeto não distribui jogos, chaves criptográficas (keys) ou firmwares protegidos por direitos autorais.*
+
