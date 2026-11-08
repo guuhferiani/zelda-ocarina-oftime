@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <cstdlib>
 #include <cstring>
 #include <span>
 
@@ -63,6 +64,7 @@ struct BuiltinPatch {
     size_t state_size = 0;
     // Another built-in this one contains; it is skipped once this one is applied.
     std::string_view replaces{};
+    const char* enable_env = nullptr;
 };
 
 constexpr std::array<u8, 4> MAX_RESOLUTION_ORIGINAL{0xE8, 0x41, 0x00, 0x36};
@@ -104,6 +106,17 @@ constexpr std::array FPS_UNLOCK_RECORDS{
     BuiltinPatchRecord{0x3C46200, FPS_UNLOCK_ROUTINE, {}, true},
 };
 
+constexpr std::array<u8, 4> OCCLUSION_OFF_ORIGINAL{0x08, 0x00, 0x40, 0x39};
+constexpr std::array<u8, 4> OCCLUSION_OFF_MOV_W8_WZR{0xE8, 0x03, 0x1F, 0x2A};
+constexpr std::array OCCLUSION_OFF_RECORDS{
+    BuiltinPatchRecord{0x11ACE68, OCCLUSION_OFF_MOV_W8_WZR, OCCLUSION_OFF_ORIGINAL},
+    BuiltinPatchRecord{0x11B828C, OCCLUSION_OFF_MOV_W8_WZR, OCCLUSION_OFF_ORIGINAL},
+    BuiltinPatchRecord{0x11B82A4, OCCLUSION_OFF_MOV_W8_WZR, OCCLUSION_OFF_ORIGINAL},
+    BuiltinPatchRecord{0x11ACEC8, OCCLUSION_OFF_MOV_W8_WZR, OCCLUSION_OFF_ORIGINAL},
+    BuiltinPatchRecord{0x11B82DC, OCCLUSION_OFF_MOV_W8_WZR, OCCLUSION_OFF_ORIGINAL},
+    BuiltinPatchRecord{0x11B82F4, OCCLUSION_OFF_MOV_W8_WZR, OCCLUSION_OFF_ORIGINAL},
+};
+
 constexpr std::array BUILTIN_PATCHES{
     // Ocarina of Time takes its "dynamic resolution disabled" path, so the 3D renders at full scale
     // instead of following the GPU-time controller down to its 480p floor.
@@ -134,6 +147,14 @@ constexpr std::array BUILTIN_PATCHES{
         .records = DYNAMIC_FPS_RECORDS,
         .state_offset = 0x4E9FE00,
         .state_size = 16,
+    },
+    BuiltinPatch{
+        .name = "Occlusion Off (built-in, EDEN_NX2_OCCLUSION_OFF=1)",
+        .title_id = 0x0400486024DEC000,
+        .module = "main",
+        .build_id = "E0F3CCFAF50065AE4EA01EB5AEB13B1A45DA3348",
+        .records = OCCLUSION_OFF_RECORDS,
+        .enable_env = "EDEN_NX2_OCCLUSION_OFF",
     },
 };
 
@@ -560,6 +581,12 @@ std::vector<u8> PatchManager::PatchNSO(const std::vector<u8>& nso, const std::st
     for (const auto& patch : BUILTIN_PATCHES) {
         if (patch.title_id != title_id || patch.module != name) {
             continue;
+        }
+        if (patch.enable_env != nullptr) {
+            const char* const value = std::getenv(patch.enable_env);
+            if (value == nullptr || std::string_view{value} != "1") {
+                continue;
+            }
         }
         if (std::find(disabled.cbegin(), disabled.cend(), patch.name) != disabled.cend()) {
             LOG_INFO(Loader, "    - Skipping \"{}\": disabled in Add-Ons", patch.name);
@@ -1213,7 +1240,10 @@ std::vector<Patch> PatchManager::GetPatches(VirtualFile update_raw) const {
     }
 
     for (const auto& patch : BUILTIN_PATCHES) {
-        if (patch.title_id != title_id) {
+        if (patch.title_id != title_id ||
+            (patch.enable_env != nullptr &&
+             std::string_view{std::getenv(patch.enable_env) ? std::getenv(patch.enable_env) : ""} !=
+                 "1")) {
             continue;
         }
         const auto is_disabled = [&](std::string_view name) {
